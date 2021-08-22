@@ -1,0 +1,40 @@
+---
+
+  old_diskgroup_config: True
+  oracle_user: oracle
+  grid_user: grid
+  grid_install_user: "{% if role_separation %}{{ grid_user }}{% else %}{{ oracle_user }}{% endif %}"
+  oracle_group: oinstall
+  oracle_base: /u01/app/oracle
+  oracle_home_gi: "{% if configure_cluster %}{{ oracle_home_gi_cl }}{% else %}{{ oracle_home_gi_so }}{% endif %}"
+  oracle_home_gi_cl: "/u01/app/{{ oracle_install_version_gi }}/grid" # ORACLE_HOME for Grid Infrastructure (Clustered)
+  oracle_home_gi_so: "{{ oracle_base }}/{{ oracle_install_version_gi }}/grid" # ORACLE_HOME for Grid Infrastructure (Stand Alone)
+  oracle_stage: /u01/stage
+  oracle_rsp_stage: "{{ oracle_stage }}/rsp"
+  oracle_stage_remote: "{{ oracle_stage }}"
+  device_persistence: asmlib
+  oracle_asm_disk_string: "{% if device_persistence == 'asmlib' %}{% elif device_persistence == 'udev' %}/dev/oracle/{% else %}{% endif %}"
+  oracle_asm_init_dg: DATA
+  oracle_compat_version: "{{ oracle_install_version_gi | regex_replace('^([0-9]{1,2}.[0-9]{1,}).*','\\1') }}"
+
+  asm_disk_location: /dev/oracleasm/disks
+
+  gg_vol_size: 25
+  exp_vol_size: 295
+
+  gg_dg:
+    name: GG_DG
+    dir: gg
+    pattern: GG*
+    vol: GG_FS_VOL
+    size: "{{ gg_vol_size }}"
+
+  exp_dg:
+    name: EXP_DG
+    dir: exp
+    pattern: EXP*
+    vol: EXP_FS_VOL
+    size: "{{ exp_vol_size }}"
+
+  create_exp_diskgroup: True
+  create_gg_diskgroup: False

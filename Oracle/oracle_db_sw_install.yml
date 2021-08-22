@@ -1,0 +1,6 @@
+---
+- name: Database Server installation
+  hosts: '{{ host }}'
+  become: yes
+  roles:
+    - oraswdb-install

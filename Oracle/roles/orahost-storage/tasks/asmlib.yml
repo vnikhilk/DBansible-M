@@ -1,0 +1,38 @@
+- name: get logical volumes for asm
+  find:
+    paths: "/dev/mapper"
+    file_type: any
+    patterns: ora--dg--*
+    use_regex: no
+  register: asm_disks
+
+- name: ASM-storage | create asmlib labels
+  shell: "{{ asmlib_binary}} createdisk {{ disk_label }} {{ disk_info.path }}"
+  args:
+     creates: "/dev/oracleasm/disks/{{ disk_label }}"
+  loop: "{{ asm_disks.files }}"
+  loop_control:
+    loop_var: disk_info
+  run_once: "{{ configure_cluster}}"
+  vars:
+    disk_label: "{{ disk_info.path | basename | regex_replace('ora--dg--([^-]*).*', '\\1') | upper }}"
+  when: device_persistence == 'asmlib'
+  tags: asmlibconfig,asmstorage
+
+- name: ASMlib | Rescan ASM disks
+  shell: "{{asmlib_binary}} scandisks"
+  when: device_persistence == 'asmlib'
+  changed_when: False
+  tags: asmlibconfig,asmstorage
+
+- name: ASMlib | List ASM disks
+  shell: "{{asmlib_binary}} listdisks"
+  when: device_persistence == 'asmlib'
+  register: listdisks
+  changed_when: False
+  tags: asmlibconfig,asmstorage
+
+- name: ASMlib | List ASM disks
+  debug: var=listdisks.stdout_lines
+  when: device_persistence == 'asmlib'
+  tags: asmlibconfig,asmstorage

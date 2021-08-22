@@ -1,0 +1,6 @@
+---
+- name: Oracle Grid Infrastructure installation
+  hosts: '{{ host }}'
+  become: yes
+  roles:
+    - cxoracle

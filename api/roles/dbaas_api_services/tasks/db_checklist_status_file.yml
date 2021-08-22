@@ -1,0 +1,64 @@
+---
+- name: fetch logfile
+  fetch:
+    src: "{{ logfile_path }}"
+    dest: /tmp/fetched
+
+- name: Insert Log FIle to V_CHECKLIST_STATUS
+  block:
+  - name: execute 'upload to els' API call
+    delegate_to: localhost
+    become: False
+    els_file_upload:
+      server: "{{ els_host }}"
+      verify_certificate: False
+      els_file: "/tmp/fetched/{{ inventory_hostname }}/{{ logfile_path }}"
+      els_id: "{{ lookup('pipe','date +%s%N') }}"
+    register: es_log_insrt_response
+
+  #  "app_id" is a fk and needs to discussed and is not in body of post call
+  - name: POST In features V_PROCESS_STATUS
+    uri:
+      url: "{{ apex_url }}/{{ apex_uri }}/checklist/checklist_attach_file"
+      validate_certs: no  # should be removed after https certs becomes renewed
+      method: POST
+      body_format: json
+      body:
+        record_type: "{{ record_type }}"
+        task_area: "{{ task_area }}"
+        task_id: "{{ task_id }}"
+        task_key: "{{ task_key }}"
+        task_status: "{{ task_status }}"
+        file_name: "{{ logfile_path }}"
+        file_mimetype: "text/plain"
+        task_message: "{{ task_message }}"
+        platform_vendor: "{{ platform_vendor }}"
+        standard_task_id: "{{ standard_task_id }}"
+        es_index: "{{ es_log_insrt_response.msg._index }}"
+        es_id: "{{ es_log_insrt_response.msg._id }}"
+      headers:
+        Content-Type: "application/json"
+        Cache-Control: "no-cache"
+        record_type: "{{ record_type }}"
+        task_area: "{{ task_area }}"
+        task_id: "{{ task_id }}"
+        task_key: "{{ task_key }}"
+        task_status: "{{ task_status }}"
+        file_name: "{{ logfile_path }}"
+        file_mimetype: "text/plain"
+        task_message: "{{ task_message }}"
+        platform_vendor: "{{ platform_vendor }}"
+        standard_task_id: "{{ standard_task_id }}"
+        es_index: "{{ es_log_insrt_response.msg._index }}"
+        es_id: "{{ es_log_insrt_response.msg._id }}"
+    register: checklist_attach_file_response
+  rescue:
+  - name: Store the Json If APEX Server Is Down
+    delegate_to: localhost
+    become: False
+    lineinfile:
+      path: "{{ json_backup_dir }}/{{ ansible_name }}_db_features.json"
+      line: "{{ db_features_body  | to_json }}"
+      create: yes
+    when:
+    - checklist_attach_file_response == "500" or  checklist_attach_file_response.status == -1

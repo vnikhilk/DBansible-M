@@ -1,0 +1,90 @@
+---
+- name: Create disk json
+  copy:
+    dest: /tmp/disk_info.json
+    content: |
+     {{ instances.ebs_block_device }}
+
+- name: Copy parse disks script
+  copy:
+    src: parse_disks.py
+    dest: /tmp/parse_disks.py
+
+- name: Run parse_disks script
+  shell: python /tmp/parse_disks.py /tmp/disk_info.json
+  register: dgrps
+
+- name: Create diskgroup with disk
+  set_fact: asm_groups={{ dgrps.stdout }}
+
+- name: oracle disk group
+  set_fact:
+    asm_diskgroups: |
+      {% set asm_diskgroups = [] %}
+      {% for device in instances.ebs_block_device -%}
+      {% if device.block_type != 'File System' -%}
+        {{ asm_diskgroups.append({'diskgroup': device.filesystem,'disk': asm_groups[device.filesystem],'state': 'present','properties': [{'redundancy': 'external', 'ausize': 4}],'attributes': [{'name': 'compatible.asm', 'value': "{{ oracle_compatibility_verison }}"},{'name': 'compatible.rdbms', 'value': "{{ oracle_compatibility_verison }}"}] }) }}
+      {%- endif %}
+      {%- endfor %}
+      {{ asm_diskgroups | unique }}
+
+- name: make sure asm added
+  shell: "{{ oracle_home_gi }}/bin/srvctl add asm || true"
+  become: yes
+  become_user: "{{ grid_install_user }}"
+  ignore_errors: True
+
+- name: make sure asm started
+  shell: "{{ oracle_home_gi }}/bin/srvctl start asm || true"
+  become: yes
+  become_user: "{{ grid_install_user }}"
+  ignore_errors: True
+
+- name: ASMCA | Create script to build asm-diskgroups
+  template: src=asmca-createdg.sh.j2 dest="{{ oracle_rsp_stage }}/asmca-createdg-{{ item.diskgroup }}.sh"  owner="{{ grid_install_user }}" group={{ oracle_group }} mode=744 backup=yes
+  with_items: "{{asm_diskgroups}}"
+  run_once: "{{ configure_cluster}}"
+  when:  asm_diskgroups is defined
+  # when: item.diskgroup != oracle_asm_init_dg and asm_diskgroups is defined
+  tags: asmcaa
+
+- name: ASMCA | Create ASM diskgroups
+  shell: "{{ oracle_rsp_stage }}/asmca-createdg-{{ item.diskgroup }}.sh"
+  with_items: "{{asm_diskgroups}}"
+  become: yes
+  become_user: "{{ grid_install_user }}"
+  run_once: "{{ configure_cluster}}"
+  when:  asm_diskgroups is defined
+  # when: item.diskgroup != oracle_asm_init_dg and asm_diskgroups is defined
+  ignore_errors: True
+  tags: asmca
+  register: asmca
+
+- name: Print Results
+  debug: var=item
+  with_items:
+     - "{{ asmca.results|map(attribute='stdout_lines')|list }}"
+  run_once: "{{ configure_cluster}}"
+  #when: master_node
+  ignore_errors: true
+  tags: asmca
+
+- name: ASMCA | List ASM diskgroups
+  shell: "{{ oracle_home_gi }}/bin/srvctl status diskgroup -g {{ item.diskgroup }}"
+  with_items: "{{asm_diskgroups}}"
+  become: yes
+  become_user: "{{ grid_install_user }}"
+  run_once: "{{ configure_cluster}}"
+  when:  asm_diskgroups is defined
+  tags: srvctlasm
+  register: srvctlasm
+
+
+- name: list diskgroups
+  debug: var=item
+  with_items:
+     - "{{ srvctlasm.results|map(attribute='stdout_lines')|list }}"
+  run_once: "{{ configure_cluster}}"
+  when: asm_diskgroups is defined
+  ignore_errors: true
+  tags: srvctlasm

@@ -1,0 +1,7 @@
+---
+- name: ASM Configuration
+  hosts: '{{ host }}'
+  become: yes
+  tasks:
+  - import_role:
+      name: oracle_ACFS

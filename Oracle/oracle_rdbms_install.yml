@@ -1,0 +1,6 @@
+---
+- name: Oracle RDBMS installation
+  hosts: '{{ host }}'
+  become: yes
+  roles:
+    - oraswdb-install

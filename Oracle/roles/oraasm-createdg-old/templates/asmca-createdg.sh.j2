@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+#!/bin/bash
+
+{{ oracle_home_gi }}/bin/asmca -silent -createDiskGroup \
+       -diskGroupName {{ diskgroup.name }} \
+       -diskList '{{ diskgroup_list  | json_query("files[].path") | join("','") }}' \
+       -redundancy external \
+       -au_size 4 \
+       -compatible.asm {{ oracle_compat_version }} \
+       -compatible.advm {{ oracle_compat_version }} \
+       -sysAsmPassword {{ sysasmpassword }}

@@ -1,0 +1,54 @@
+---
+# oracle_db_name: +ASM
+
+install_base: /u01/app/oracle
+oracle_version: "{{ oracle_version }}"
+grid_version: "{{ oracle_version }}"
+oracle_base: /u01/app/oracle
+
+# location for temporary files
+oracle_tmp: /u01/tmp/postval/{{ oracle_db_name }}
+oracle_user: oracle
+oracle_group: oinstall
+oracle_db_home: db_1
+oracle_db_name: oracle
+oracle_home: "{{ oracle_base }}/product/{{ oracle_version }}/{{ oracle_db_home }}"
+
+oracle_major_version: "{{ grid_version | regex_replace('^([0-9]{1,2}.[0-9]{1,}).*','\\1') }}"
+
+oracle_dba_group: dba
+
+checklist_task: "{% if ansible_play_hosts | length == 1 -%}host
+                 {%- elif ansible_play_hosts | length > 1 -%}cluster
+                 {%- endif %}"
+
+setup_ssh_user_equivalency: "{% if checklist_task == 'cluster' -%}True
+                             {%- elif checklist_task == 'host' -%}False
+                             {%- endif %}"
+
+cluster_nodes: "{{ ansible_play_hosts }}"
+
+master_node: "{{ ansible_play_hosts | sort | first }}"
+
+cluster_name: "{{ cluster_name }}"
+
+standard_task_id: "0"
+known_cluvfy_issues:
+  - "Group Existence: asmadmin"
+  - "Group Membership: asmadmin"
+
+
+oracle_grid_home: "{{ oracle_base }}/{{ grid_version }}/grid_1"
+
+# shell environment for the oracle user
+ora_user_env:
+  ORACLE_BASE: "{{ oracle_base }}"
+  ORACLE_SID: "{{ oracle_sid | default('') }}"
+  ORACLE_UNQNAME: "{{ oracle_db_name | default('') }}"
+  ORACLE_HOME: "{{ oracle_home }}"
+  NLS_LANG: "American_America.UTF8"
+  PATH: "{{ oracle_home }}/bin:{{ oracle_home }}/bin:{{ ansible_env.PATH }}"
+  TMP: "/u01/app/oracle"
+  TMPDIR: "/u01/app/oracle"
+
+oracle_installer_path: https://vm0pnyumxxw0001.twcable.com/yum/source/ORACLE_DB

@@ -1,0 +1,7 @@
+---
+- name: Oracle Create DB 
+  hosts: '{{ host }}'
+  become: yes
+  roles:
+    - cxoracle
+    - oradb-manage-db

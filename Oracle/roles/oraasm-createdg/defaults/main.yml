@@ -1,0 +1,200 @@
+---
+
+  old_diskgroup_config: True
+  oracle_user: oracle
+  grid_user: grid
+  grid_install_user: "{% if role_separation %}{{ grid_user }}{% else %}{{ oracle_user }}{% endif %}"
+  oracle_group: oinstall
+  oracle_base: /u01/app/oracle
+  oracle_home_gi: "{% if configure_cluster %}{{ oracle_home_gi_cl }}{% else %}{{ oracle_home_gi_so }}{% endif %}"
+  oracle_home_gi_cl: "/u01/app/{{ oracle_install_version_gi }}/grid" # ORACLE_HOME for Grid Infrastructure (Clustered)
+  oracle_home_gi_so: "{{ oracle_base }}/{{ oracle_install_version_gi }}/grid" # ORACLE_HOME for Grid Infrastructure (Stand Alone)
+  oracle_stage: /u01/stage
+  oracle_rsp_stage: "{{ oracle_stage }}/rsp"
+  oracle_stage_remote: "{{ oracle_stage }}"
+  device_persistence: udev
+  oracle_asm_disk_string: /dev/oracleasm/disks/
+
+  role_separation: false
+  oracle_asm_init_dg: DATA
+  asm_disk_location: /dev/oracleasm/disks/
+
+
+  # GI
+  default_gipass: "{% if oracle_password is defined %}{{ oracle_password }}{% else %}Oracle123{% endif%}" # The check for the old passwords are there for backwards compatibility and only temporary, will be removed
+  # sysasmpassword: "{% if oracle_password is defined %}{{ oracle_password }}{% else %}Oracle123{% endif%}" # The check for the old passwords are there for backwards compatibility and only temporary, will be removed
+  sysasmpassword: Oracle123
+  asmmonitorpassword: "{% if oracle_password is defined %}{{ oracle_password }}{% else %}Oracle123{% endif%}" # The check for the old passwords are there for backwards compatibility and only temporary, will be removed
+
+  oracle_install_version_gi: 12.1.0.2
+  configure_cluster: False
+
+  oracle_env:
+        ORACLE_HOME: "{{ oracle_home_gi }}"
+        LD_LIBRARY_PATH: "{{ oracle_home_gi }}/lib"
+
+  oracle_asm_disk_prefix: ''
+  # oracle_asm_disk_prefix: "{% if device_persistence |lower == 'asmlib' %}ORCL:{% elif device_persistence |lower == 'udev' %}/dev/oracle/{% else %}{% endif %}"
+  asmdevice_list: "{% if device_persistence |lower == 'asmlib' %}{%- for disk in item.disk -%}{{ oracle_asm_disk_prefix}}{{disk.asmlabel |upper}}{%- if not loop.last -%},{%- endif -%}{% endfor %}{% elif device_persistence |lower == 'udev' %}{%- for disk in item.disk -%}{{ oracle_asm_disk_prefix}}{{disk.asmlabel }}{%- if not loop.last -%},{%- endif -%}{% endfor %}{% endif %}"
+  attr_name:  "{% if item.attributes is defined %}{{item.attributes |default (omit) | map(attribute='name') | list }}{% else %}None{%endif%}"
+  attr_value: "{% if item.attributes is defined %}{{item.attributes |default (omit) | map(attribute='value') | list }}{% else %}None{%endif%}"
+
+  oracle_compatibility_verison: "{% if oracle_install_version_gi == '19.3.0.0' %}19.0{% elif oracle_install_version_gi == '18.3.0.0' %}18.0{% else %}{{ oracle_install_version_gi }}{% endif %}"
+
+  asm_groups: {}
+
+  # asm_diskgroups:
+  #   - diskgroup: DATA
+  #     state: present
+  #     properties:
+  #       - {redundancy: external, ausize: 4}
+  #     attributes:
+  #       - {name: compatible.asm, value: "{{ oracle_compatibility_verison }}"}
+  #       - {name: compatible.rdbms, value: "{{ oracle_compatibility_verison }}"}
+  #     disk:
+  #       - {asmlabel: DATA01}
+  #   - diskgroup: RECO
+  #     state: present
+  #     properties:
+  #       - {redundancy: external, ausize: 4}
+  #     attributes:
+  #       - {name: compatible.asm, value: "{{ oracle_compatibility_verison }}"}
+  #       - {name: compatible.rdbms, value: "{{ oracle_compatibility_verison }}"}
+  #     disk:
+  #       - {asmlabel: RECO01}
+  #   - diskgroup: EXP
+  #     state: present
+  #     properties:
+  #       - {redundancy: external, ausize: 4}
+  #     attributes:
+  #       - {name: compatible.asm, value: "{{ oracle_compatibility_verison }}"}
+  #       - {name: compatible.rdbms, value: "{{ oracle_compatibility_verison }}"}
+  #     disk:
+  #       - {asmlabel: EXP01}
+  #       - {asmlabel: EXP02}
+  #       - {asmlabel: EXP03}
+  #   - diskgroup: GG
+  #     state: present
+  #     properties:
+  #       - {redundancy: external, ausize: 4}
+  #     attributes:
+  #       - {name: compatible.asm, value: "{{ oracle_compatibility_verison }}"}
+  #       - {name: compatible.rdbms, value: "{{ oracle_compatibility_verison }}"}
+  #     disk:
+  #       - {asmlabel: GG01}
+  #       - {asmlabel: GG02}
+  #       - {asmlabel: GG03}
+
+  # asm_diskgroups:
+  #   - diskgroup: data
+  #     state: present
+  #     properties:
+  #       - {redundancy: external, ausize: 4}
+  #     attributes:
+  #       - {name: compatible.asm, value: "{{ oracle_install_version_gi }}"}
+  #       - {name: compatible.rdbms, value: "{{ oracle_install_version_gi }}"}
+  #     disk:
+  #       - {device: /dev/sdc, asmlabel: DATA01}
+  #   - diskgroup: reco
+  #     state: present
+  #     properties:
+  #       - {redundancy: external, ausize: 4}
+  #     attributes:
+  #       - {name: compatible.asm, value: "{{ oracle_install_version_gi }}"}
+  #       - {name: compatible.rdbms, value: "{{ oracle_install_version_gi }}"}
+  #     disk:
+  #       - {device: /dev/sdd, asmlabel: reco01}
+  #   - diskgroup: exp
+  #     state: present
+  #     properties:
+  #       - {redundancy: external, ausize: 4}
+  #     attributes:
+  #       - {name: compatible.asm, value: "{{ oracle_install_version_gi }}"}
+  #       - {name: compatible.rdbms, value: "{{ oracle_install_version_gi }}"}
+  #     disk:
+  #       - {device: /dev/sde, asmlabel: exp01}
+  #       - {device: /dev/sdf, asmlabel: exp02}
+  #       - {device: /dev/sdg, asmlabel: exp03}
+  #   - diskgroup: gg
+  #     state: present
+  #     properties:
+  #       - {redundancy: external, ausize: 4}
+  #     attributes:
+  #       - {name: compatible.asm, value: "{{ oracle_install_version_gi }}"}
+  #       - {name: compatible.rdbms, value: "{{ oracle_install_version_gi }}"}
+  #     disk:
+  #       - {device: /dev/sdh, asmlabel: gg01}
+  #       - {device: /dev/sdi, asmlabel: gg02}
+  #       - {device: /dev/sdj, asmlabel: gg03}
+
+
+
+  # gg_vol_size: 25
+  # exp_vol_size: 295
+
+  # gg_dg:
+  #   name: GG_DG
+  #   dir: gg
+  #   pattern: GG*
+  #   vol: GG_FS_VOL
+  #   size: "{{ gg_vol_size }}"
+
+  # exp_dg:
+  #   name: EXP_DG
+  #   dir: exp
+  #   pattern: EXP*
+  #   vol: EXP_FS_VOL
+  #   size: "{{ exp_vol_size }}"
+
+
+
+
+  # asm_diskgroups:
+  #   - diskgroup: data
+  #     properties:
+  #       - {redundancy: external, ausize: 4}
+  #     attributes:
+  #       - {name: compatible.rdbms, value: 11.2.0.4.0}
+  #       - {name: compatible.asm, value: 12.1.0.2.0}
+  #     disk:
+  #       - {device: /dev/sdf, asmlabel: data01}
+  #   - diskgroup: fra
+  #     properties:
+  #       - {redundancy: external, ausize: 4}
+  #     attributes:
+  #       - {name: compatible.rdbms, value: 11.2.0.4.0}
+  #       - {name: compatible.asm, value: 12.1.0.2.0}
+  #     disk:
+  #       - {device: /dev/sdg, asmlabel: fra01}
+
+
+# disks:
+#           - { raw: "/dev/{{disk}}dc", part: "1", vg: ora-dg-ocr01 }
+#           - { raw: "/dev/{{disk}}dd", part: "1", vg: ora-dg-ocr02 }
+#           - { raw: "/dev/{{disk}}de", part: "1", vg: ora-dg-ocr03 }
+#           - { raw: "/dev/{{disk}}df", part: "1", vg: ora-dg-data01 }
+#           - { raw: "/dev/{{disk}}dg", part: "1", vg: ora-dg-reco01 }
+#           - { raw: "/dev/{{disk}}dh", part: "1", vg: ora-dg-exp01 }
+#           - { raw: "/dev/{{disk}}di", part: "1", vg: ora-dg-exp02 }
+#           - { raw: "/dev/{{disk}}dj", part: "1", vg: ora-dg-exp03 }
+#           - { raw: "/dev/{{disk}}dk", part: "1", vg: ora-dg-gg01 }
+#           - { raw: "/dev/{{disk}}dl", part: "1", vg: ora-dg-gg02 }
+#           - { raw: "/dev/{{disk}}dm", part: "1", vg: ora-dg-gg03 }
+# asm_disk_location: /dev/oracleasm/disks
+# asm_data_group: DATA
+# asm_data_pattern: D*
+# asm_data_redun: external
+# asm_reco_group: RECO
+# asm_reco_pattern: R*
+# asm_reco_redun: external
+# asm_ocr_group: OCR_VOTE
+# asm_ocr_pattern: GRID_DISK*
+
+# DATA01
+# EXP01
+# EXP02
+# EXP03
+# GG01
+# GG02
+# GG03
+# RECO01

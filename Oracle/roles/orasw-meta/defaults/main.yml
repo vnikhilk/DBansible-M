@@ -1,0 +1,136 @@
+astate: "{% if oracle_version == '19.3.0.0' %}present{% else %}absent{% endif %}"
+bstate: "{% if oracle_version == '18.3.0.0' %}present{% else %}absent{% endif %}"
+cstate: "{% if oracle_version == '12.2.0.1' %}present{% else %}absent{% endif %}"
+dstate: "{% if oracle_version == '12.1.0.2' %}present{% else %}absent{% endif %}"
+
+oracle_db_home: db1 
+oracle_edition: EE
+
+db_homes_config:
+  19300-base:
+  #Work on var for home, default is db1 but should be able to set
+    home: "{{ oracle_db_home }}"
+    version: 19.3.0.0
+  #Variable for edition, default is EE but should be able to set (SE, PE, EE)
+    edition: "{{ oracle_edition }}"
+  18300-base:
+    home: "{{ oracle_db_home }}"
+    version: 18.3.0.0
+    edition: "{{ oracle_edition }}"
+  12201-base:
+    home: "{{ oracle_db_home }}"
+    version: 12.2.0.1
+    edition: "{{ oracle_edition }}"
+  12102-base:
+    home: "{{ oracle_db_home }}"
+    version: 12.1.0.2
+    edition: "{{ oracle_edition }}"
+
+
+db_homes_installed:
+     - home: 19300-base
+       apply_patches: False
+       state: "{{ astate }}"
+     - home: 18300-base
+       apply_patches: False
+       state: "{{ bstate }}"
+     - home: 12201-base
+       apply_patches: False
+       state: "{{ cstate }}"
+     - home: 12102-base
+       apply_patches: False
+       state: "{{ dstate }}"
+       
+
+
+# patch_file_19: p30783543_190000_Linux-x86-64.zip
+# psu_version_19: 19.7.0.0.200414
+# patch_file_18: p30923359_180000_Linux-x86-64.zip
+# psu_version_18: 18.8.2.0.200414
+# patch_file_122: p30820944_122010_Linux-x86-64.zip
+# psu_version_122: 12.2.0.1.200414
+
+#From AWX vars patch_file:  p30783543_190000_Linux-x86-64.zip 
+#From AWX vars psu_version: 19.7.0.0.200414
+
+patch_file_19: "{% if oracle_version == '19.3.0.0' %}{{ patch_file }}{% else %}p30783543_190000_Linux-x86-64.zip{% endif %}"
+patch_file_18: "{% if oracle_version == '18.3.0.0' %}{{ patch_file }}{% else %}p30923359_180000_Linux-x86-64.zip{% endif %}"
+patch_file_122: "{% if oracle_version == '12.2.0.1' %}{{ patch_file }}{% else %}p30820944_122010_Linux-x86-64.zip{% endif %}"
+
+
+patchidversion_19: "{{ patch_file_19 | regex_search ('[0-9]+') }}" 
+patchidversion_18: "{{ patch_file_18 | regex_search ('[0-9]+') }}"
+patchidversion_122: "{{ patch_file_122 | regex_search ('[0-9]+') }}"
+
+
+psu_version_19: "{% if oracle_version == '19.3.0.0' %}{{ psu_version }}{% else %}19.7.0.0.200414{% endif %}"
+psu_version_18: "{% if oracle_version == '18.3.0.0' %}{{ psu_version }}{% else %}18.8.2.0.200414{% endif %}"
+psu_version_122: "{% if oracle_version == '12.2.0.1' %}{{ psu_version }}{% else %}12.2.0.1.200414{% endif %}"
+
+
+oracle_sw_patches:
+     - { filename: "{{ patch_file_19 }}", patchid: "{{ patchidversion_19 }}", version: 19.3.0.0,  patchversion: "{{ psu_version_19 }}" }
+     - { filename: "{{ patch_file_18 }}", patchid: "{{ patchidversion_18 }}", version: 18.3.0.0,  patchversion: "{{ psu_version_18 }}" }
+     - { filename: "{{ patch_file_122 }}", patchid: "{{ patchidversion_122 }}", version: 12.2.0.1,  patchversion: "{{ psu_version_122 }}"}
+
+#From AWX vars opatch_util_installer: p6880880_121010_Linux-x86-64.zip
+
+oracle_opatch_patch:
+     - { filename: "{{ opatch_util_installer }}", version: 19.3.0.0 }
+     - { filename: "{{ opatch_util_installer }}", version: 18.3.0.0 }
+     - { filename: "{{ opatch_util_installer }}", version: 12.2.0.1 }
+     - { filename: "{{ opatch_util_installer }}", version: 12.1.0.2 }
+
+
+oracle_ojvm_patch:
+     - { filename: p28440711_121020_Linux-x86-64.zip, version: 12.1.0.2, patchversion: 12.1.0.2.181016 }
+
+default_dbpass: Oracle123
+oracle_base: /u01/app/oracle
+oracle_home_db: "{%- if dbh is defined -%}
+                    {%- if db_homes_config[dbh.home]['oracle_home'] is defined  -%}
+                         {{db_homes_config[dbh.home]['oracle_home']}}
+                    {%- else -%}
+                         {{oracle_base}}/{{db_homes_config[dbh.home]['version']}}/{{db_homes_config[dbh.home]['home']}}
+                    {%- endif -%}
+                 {%- elif item.0 is defined -%}
+                    {%- if db_homes_config[item.0.home]['oracle_home'] is defined  -%}
+                         {{db_homes_config[item[0].home]['oracle_home']}}
+                    {%- else -%}
+                         {{oracle_base}}/{{db_homes_config[item.0.home]['version']}}/{{db_homes_config[item.0.home]['home']}}
+                    {%- endif -%}
+                 {%- elif item[1] is defined -%}
+                    {%- if db_homes_config[item[1].home]['oracle_home'] is defined  -%}
+                         {{db_homes_config[item[1].home]['oracle_home']}}
+                    {%- else -%}
+                         {{oracle_base}}/{{db_homes_config[item[1].home]['version']}}/{{db_homes_config[item[1].home]['home']}}
+                    {%- endif -%}
+                 {%- elif item is defined -%}
+                    {%- if db_homes_config[item.home]['oracle_home'] is defined  -%}
+                         {{db_homes_config[item.home]['oracle_home']}}
+                    {%- else -%}
+                         {{oracle_base}}/{{db_homes_config[item.home]['version']}}/{{db_homes_config[item.home]['home']}}
+                    {%- endif -%}
+                 {%- endif -%}"
+
+db_version: "{%- if dbh is defined and db_homes_config[dbh.home] is defined -%}
+                 {%- if db_homes_config[dbh.home]['version'] is defined  -%}
+                      {{db_homes_config[dbh.home]['version']}}
+                 {%- endif -%}
+             {%- elif item.0 is defined and db_homes_config[item.0.home] is defined -%}
+                 {%- if db_homes_config[item.0.home]['version'] is defined  -%}
+                      {{db_homes_config[item.0.home]['version']}}
+                  {%- endif -%}
+             {%- elif item[0] is defined and db_homes_config[item[0].home] is defined -%}
+                 {%- if db_homes_config[item[0].home]['version'] is defined  -%}
+                      {{db_homes_config[item[0].home]['version']}}
+                 {%- endif -%}
+             {%- elif item[1] is defined and db_homes_config[item[1].home] is defined -%}
+                 {%- if db_homes_config[item[1].home]['version'] is defined  -%}
+                      {{db_homes_config[item[1].home]['version']}}
+                 {%- endif -%}
+             {%- elif item is defined and db_homes_config[item.home] is defined -%}
+                 {%- if db_homes_config[item.home]['version'] is defined  -%}
+                      {{db_homes_config[item.home]['version']}}
+                 {%- endif -%}
+             {%- endif -%}"

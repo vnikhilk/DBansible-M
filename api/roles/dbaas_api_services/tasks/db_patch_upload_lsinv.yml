@@ -1,0 +1,36 @@
+---
+- name: fetch logfile
+  fetch:
+    src: "{{ logfile_path }}"
+    dest: /tmp/fetched
+
+- block:
+  - name: execute 'upload to els' API call
+    delegate_to: localhost
+    become: False
+    els_file_upload:
+      server: "{{ els_host }}"
+      verify_certificate: False
+      els_file: "/tmp/fetched/{{ inventory_hostname }}/{{ logfile_path }}"
+      els_id: "{{ lookup('pipe','date +%s%N') }}"
+    register: es_log_insrt_response
+
+  - name: execute 'upload DB patch lsinv' API call
+    uri:
+      url: "{{ apex_url }}/{{ apex_uri }}/patching/ls_inventory/"
+      validate_certs: no  # should be removed after https certs becomes renewed
+      method: POST
+      headers:
+        Content-Type: text/plain
+        ID: "{{ checklist_id }}"
+        es_index:
+        es_id:
+    register: log_insrt_response
+  rescue:
+  - name: 
+    delegate_to: localhost
+    become: False
+    lineinfile:
+      path: /apex/unsent_json_body/{{ ansible_hostname }}/upload_log.json
+      line: '{"checklist_id": {{ checklist_id | to_json }} }, {"logfile_path": {{ logfile_path | to_json }} }'
+      create: yes

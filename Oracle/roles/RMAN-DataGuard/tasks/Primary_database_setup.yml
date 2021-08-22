@@ -1,0 +1,24 @@
+---
+- name: Create a Primary database setup
+  become: yes
+  become_user: '{{ oracle_user }}'
+  environment: "{{ ora_user_env }}"
+  block:
+  - name: Copy the Primary_database_setup.sql file
+    template: 
+      src: Primary_database_setup.j2
+      dest: "{{ oracle_tmp }}/Primary_database_setup.sql"
+  - name: Copy the check_logmode.sql file
+    copy:
+      src: check_force_logging.sql
+      dest: "{{ oracle_tmp }}/check_force_logging.sql"
+  - name: Check if force logging enable
+    command: "sqlplus / as sysdba @{{ oracle_tmp }}/check_force_logging.sql"
+    register: force_logging
+
+  - name: run Primary_database_setup.sql
+    command: "sqlplus / as sysdba @{{ oracle_tmp }}/Primary_database_setup.sql"
+    register: opt5
+    failed_when: '"ERROR" in opt5.stdout'
+    when: '"NO" in force_logging.stdout'
+  when: inventory_hostname == master_node

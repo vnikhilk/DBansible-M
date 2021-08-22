@@ -1,0 +1,231 @@
+#jinja2: trim_blocks:False, lstrip_blocks:True
+{%- if catalog_dest_type == 'HOST_CATALOG_TBL' -%}
+{
+    "host_name":"{{ inventory_hostname }}",
+    "domain":"{{ ansible_domain }}",
+    "platform_vendor": "{{ platform_vendor }}",
+    "catalog_dest": "{{ catalog_dest }}",
+    "env_category":"",
+    "hardware_vendor":"{{ ansible_product_version }}",
+    "os_category":"{{ ansible_distribution_version }}",
+    "monitoring_tool":"{{ server_monitoring_tool }}",
+    "cloud_provider":"",
+    "dc_location":"{{ dc_location }}",
+    "app_id":"{{ app_ref_id }}",
+    "virtual_phys":"{{ phy_virt }}",
+    "server_model":"{{ ansible_bios_version }}",
+    "detail":[
+        {
+            "desc": "ansible host",
+            "value": "{{ ansible_host }}",
+            "category": "networking"
+        },
+        {
+            "desc": "ipv4 address",
+            "value": "{{ ansible_default_ipv4.address }}",
+            "category": "networking"
+        },
+        {
+            "desc": "cpu information list",
+            "value": "{{ ansible_processor }}",
+            "category": "harware"
+        },
+        {
+            "desc": "operating system",
+            "value": "{{ ansible_distribution }} {{ ansible_distribution_version }}",
+            "category": "software"
+        },
+        {
+            "desc": "system architecture",
+            "value": "{{ ansible_machine }}",
+            "category": "hardware"
+        },
+        {
+            "desc": "system id",
+            "value": "{{ ansible_machine_id }}",
+            "category": "hardware"
+        },
+        {
+            "desc": "free memory in mb",
+            "value": "{{ ansible_memfree_mb }}",
+            "category": "hardware"
+        },
+        {
+            "desc": "used memory in mb",
+            "value": "{{ ansible_memory_mb.real.used }}",
+            "category": "hardware"
+        },
+        {
+            "desc": "total memory in mb",
+            "value": "{{ ansible_memtotal_mb }}",
+            "category": "hardware"
+        },
+        {
+            "desc": "operation system family",
+            "value": "{{ ansible_os_family }}",
+            "category": "software"
+        },
+        {
+            "desc": "platform version",
+            "value": "{{ ansible_product_name }}",
+            "category": "hardware"
+        },
+        {
+            "desc": "platform serial",
+            "value": "{{ ansible_product_serial }}",
+            "category": "hardware"
+        },
+        {
+            "desc": "platform uuid",
+            "value": "{{ ansible_product_uuid }}",
+            "category": "hardware"
+        },
+        {
+            "desc": "product version",
+            "value": "{{ ansible_product_version }}",
+            "category": "hardware"
+        },
+        {
+            "desc": "free swap in mb",
+            "value": "{{ ansible_swapfree_mb }}",
+            "category": "hardware"
+        },
+        {
+            "desc": "total swap in mb",
+            "value": "{{ ansible_swaptotal_mb }}",
+            "category": "hardware"
+        },
+        {
+            "desc": "hardware architecture",
+            "value": "{{ ansible_architecture }}",
+            "category": "hardware"
+        },
+        {
+            "desc": "virtualization platform",
+            "value": "{{ ansible_virtualization_type }}",
+            "category": "hardware"
+        },
+        {
+            "desc": "cpu count",
+            "value": "{{ ansible_processor_count }}",
+            "category": "harware"
+        },
+        {
+            "desc": "memory count",
+            "value": "{{ ansible_memtotal_mb }}",
+            "category": "hardware"
+        }
+    ]
+}
+{%- endif -%}
+{%- if catalog_dest_type == 'DB_CATALOG_TBL' -%}
+{
+    "host_name":"{{ inventory_hostname }}",
+    "db_name": "{{ deploy_db_name }}",
+    "platform_vendor": "{{ platform_vendor }}",
+    "catalog_dest": "{{ catalog_dest }}",
+    "ha_enabled": "N",
+    "pci": "{{ pci_required | default('') }}",
+    "sox": "{{ sox_required | default('') }}",
+    "cloud": "Y",
+    "app_id": "{{ app_ref_id }}",
+    "db_desc": "db1 test",
+    "db_version": "{{ deploy_db_version | default('') }}",
+    "dc_location":"{{ dc_location }}",
+    "detail": [
+        {
+            "desc": "datagaurd",
+            "value": "Y",
+            "category": "extra_vars"
+        },
+        {
+            "desc": "databse_role",
+            "value": "{{ database_role | default('') }}",
+            "category": "extra_vars"
+        },
+        {
+            "desc": "env_category",
+            "value": "{{ db_environment }}",
+            "category": "db_property"
+        },
+        {
+            "desc": "mongodb authentication",
+            "value": "{{ mdb_auth | default('') }}",
+            "category": "db_property"
+        },
+        {
+            "desc": "mongodb bind ip",
+            "value": "{{ mdb_bindip | default('') }}",
+            "category": "db_property"
+        },
+        {
+            "desc": "mongodb config set",
+            "value": "{{ mdb_confset | default('') }}",
+            "category": "db_property"
+        },
+        {
+            "desc": "mongodb journal state",
+            "value": "{{ mdb_jour | default('') }}",
+            "category": "db_property"
+        },
+        {
+            "desc": "mongodb logging",
+            "value": "{{ mdb_log | default('') }}",
+            "category": "db_property"
+        },
+        {
+            "desc": "mongodb data path",
+            "value": "{{ mdb_path | default('') }}",
+            "category": "db_property"
+        },
+        {
+            "desc": "mongodb process id",
+            "value": "{{ mdb_pid| default('') }}",
+            "category": "db_property"
+        },
+        {
+            "desc": "mongodb port",
+            "value": "{{ mdb_port| default('') }}",
+            "category": "db_property"
+        },
+        {
+            "desc": "mongodb replicaset",
+            "value": "{{ mdb_repset| default('') }}",
+            "category": "db_property"
+        },
+        {
+            "desc": "mongodb role",
+            "value": "{{ mdb_role| default('') }}",
+            "category": "db_property"
+        }
+    ]
+}
+{%- endif -%}
+{%- if catalog_dest_type == 'HA_MAPPING_TBL' -%}
+{
+    "host_code":"",
+    "shard_host_ci":"{%- if mongo_type is defined and mongo_type == 'shard' -%}{{ inventory_hostname }}{%- endif -%}",
+    "platform_vendor": "{{ platform_vendor }}",
+    "catalog_dest": "{{ catalog_dest }}",
+    "ha_type":"{%- if platform_vendor|lower == 'mongodb' -%}Replication{%- endif -%}",
+    "master_host_ci":"{%- if mongo_type is defined and mongo_type == 'configure' -%}{{ inventory_hostname }}{%- endif -%}",
+    "slave_host_ci":"",
+    "primary_host_ci":"",
+    "standby_host_ci":"",
+    "system_name":"{{ inventory_hostname }}",
+    "aag_primary":"",
+    "aag_nodes":"",
+    "detail":[
+        {
+            "desc": "",
+            "value": "",
+            "category": "",
+        },
+        {
+            "desc": "",
+            "value": "",
+            "category": "",
+        }
+    ]
+}
+{%- endif -%}

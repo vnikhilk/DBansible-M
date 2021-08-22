@@ -1,0 +1,10 @@
+---
+- name: insert database
+  hosts: '{{ host }}'
+  become: yes
+  vars:
+    catalog_dest_type: DB_CATALOG_TBL
+    deploy_db_name: "{{ db_name | default('orasample') }}"
+    deploy_db_version: "{{ oracle_version }}"
+  roles:
+  - api_catalog

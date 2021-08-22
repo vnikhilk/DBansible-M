@@ -1,0 +1,8 @@
+---
+- name: Oracle Grid Infrastructure Patching
+  hosts: '{{ host }}'
+  become: yes
+  roles:
+    - { role: oraswgi-manage-patches, when: oracle_install_version_gi != "12.1.0.2" }
+
+#- oraswgi-manage-patches

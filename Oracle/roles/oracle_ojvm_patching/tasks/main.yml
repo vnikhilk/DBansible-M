@@ -1,0 +1,55 @@
+---
+# main
+- include_vars: secrets.yml
+  no_log: True
+
+- include_tasks: get_db_home.yml
+
+- name: db checklist status post for OJVM PATCHING
+  import_role:
+    name: dbaas_api_services
+    tasks_from: db_checklist_status.yml
+  vars:
+    task_key: "{{ ansible_hostname }}"
+    task_area: "Applying OJVM"
+    task_id: "{{ ticket_ref }}"
+    task_status: "STARTED"
+    standard_task_id: "{{ standard_task_id }}"
+    task_message: "Applying OJVM for {{ ansible_hostname }} "
+  tags:
+  - apex_api
+
+- include_tasks: process_ojvm_patch.yml
+  when: ora_home_list | length > 0
+
+- name: db checklist status post for OJVM PATCHING
+  import_role:
+    name: dbaas_api_services
+    tasks_from: db_checklist_status.yml
+  vars:
+    task_key: "{{ ansible_hostname }}"
+    task_area: "Applying OJVM"
+    task_id: "{{ ticket_ref }}"
+    task_status: "SUCCESSFUL"
+    task_message: "Applying OJVM for {{ ansible_hostname }} "
+    standard_task_id: "{{ standard_task_id }}"
+  when:
+    - ojvm_failures | length == 0
+  tags:
+  - apex_api
+
+- name: db checklist status post for OJVM PATCHING
+  import_role:
+    name: dbaas_api_services
+    tasks_from: db_checklist_status.yml
+  vars:
+    task_key: "{{ ansible_hostname }}"
+    task_area: "Applying OJVM"
+    task_id: "{{ ticket_ref }}"
+    task_status: "FAILED"
+    task_message: "Applying OJVM for {{ ansible_hostname }} "
+    standard_task_id: "{{ standard_task_id }}"
+  when:
+    - ojvm_failures | length > 0
+  tags:
+  - apex_api

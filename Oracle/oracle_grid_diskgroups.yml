@@ -1,0 +1,10 @@
+---
+- name: Oracle Grid DiskGroups setup
+  hosts: '{{ host }}'
+  become: yes
+  roles:
+    - oraasm-createdg
+
+
+# oraasm-manage-diskgroups
+# need to be merged with grid install

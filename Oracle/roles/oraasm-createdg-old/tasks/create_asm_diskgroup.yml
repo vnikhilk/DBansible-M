@@ -1,0 +1,48 @@
+---
+
+  - name: get asm disk paths - {{ diskgroup.dir }}
+    find:
+      paths: "{{ asm_disk_location }}"
+      file_type: any
+      patterns: "{{ diskgroup.pattern }}"
+      use_regex: no
+    register: diskgroup_list
+
+  - name: ASMCA | Create script to build asm-diskgroups
+    template: src=asmca-createdg.sh.j2 dest="{{ oracle_rsp_stage }}/asmca-createdg-{{ diskgroup.name }}.sh"  owner="{{ grid_install_user }}" group={{ oracle_group }} mode=744 backup=yes
+    run_once: "{{ configure_cluster}}"
+    when: diskgroup.name != oracle_asm_init_dg and storage_type =='ASM'
+    tags: asmcaa
+
+  - name: ASMCA | Create ASM diskgroups
+    shell: "{{ oracle_rsp_stage }}/asmca-createdg-{{ diskgroup.name }}.sh"
+    become: yes
+    become_user: "{{ grid_install_user }}"
+    run_once: "{{ configure_cluster}}"
+    when: diskgroup.name != oracle_asm_init_dg and storage_type =='ASM'
+    ignore_errors: True
+    tags: asmca
+    register: asmca
+
+  - name: Print Results
+    debug: var=asmca.stdout_lines|list
+    run_once: "{{ configure_cluster}}"
+    #when: master_node
+    ignore_errors: true
+    tags: asmca
+
+  - name: ASMCA | List ASM diskgroups
+    shell: "{{ oracle_home_gi }}/bin/srvctl status diskgroup -g {{ diskgroup.name }}"
+    become: yes
+    become_user: "{{ grid_install_user }}"
+    run_once: "{{ configure_cluster}}"
+    when: storage_type =='ASM'
+    tags: srvctlasm
+    register: srvctlasm
+
+  - name: list diskgroups
+    debug: var=srvctlasm.stdout_lines|list
+    run_once: "{{ configure_cluster}}"
+    when: storage_type =='ASM'
+    ignore_errors: true
+    tags: srvctlasm

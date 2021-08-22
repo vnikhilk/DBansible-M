@@ -1,0 +1,167 @@
+---
+
+- name: install-home-gi | Extract files to stage-area (GI)
+  unarchive:
+       src={{ oracle_stage_remote }}/{{ item.filename }}
+       dest={{ oracle_stage }}/{{ item.version }}
+       copy=no
+       creates={{ oracle_stage }}/{{ item.version }}/{{ item.creates}}
+  with_items: "{{oracle_sw_image_gi}}"
+  become: yes
+  become_user: "{{ grid_install_user }}"
+  tags:
+    - oragridswunpack
+  when: oracle_home_gi not in checkgiinstall.stdout and oracle_install_version_gi  == item.version and oracle_sw_copy and oracle_sw_unpack
+
+- name: install-home-gi | Extract files to stage-area (GI) (from remote location)
+  unarchive:
+       src={{ oracle_stage_remote }}/{{ item.filename }}
+       dest={{ oracle_stage }}/{{ item.version }}
+       copy=no
+       creates={{ oracle_stage }}/{{ item.version }}/{{ item.creates}}
+  with_items: "{{oracle_sw_image_gi}}"
+  become: yes
+  become_user: "{{ grid_install_user }}"
+  tags:
+  - oragridswunpack
+  when: oracle_home_gi not in checkgiinstall.stdout and oracle_install_version_gi == item.version and not oracle_sw_copy and oracle_sw_unpack
+
+- name: install-home-gi | Install cvuqdisk rpm
+  yum: name="{{ oracle_stage_install }}/{{ oracle_install_version_gi }}/grid/rpm/{{ cvuqdisk_rpm }}" state=present
+  when: configure_cluster
+  tags: cvuqdisk
+  ignore_errors: true
+
+- name: install-home-gi | Setup response file for install (GI)
+  template: src=grid-install.rsp.{{ oracle_install_version_gi }}.j2 dest={{ oracle_rsp_stage }}/{{ oracle_grid_responsefile }} owner="{{ grid_install_user }}" group={{ oracle_group }} mode=600 backup=yes
+  run_once: "{{ configure_cluster}}"
+  tags:
+    - responsefilegi
+  when: oracle_home_gi not in checkgiinstall.stdout
+
+- name: install-home-gi | Install Grid Infrastructure
+  shell: "{{ oracle_stage_install }}/{{ oracle_install_version_gi }}/grid/runInstaller -responseFile {{ oracle_rsp_stage }}/{{ oracle_grid_responsefile }} -waitforcompletion -ignorePrereq -ignoreSysPrereqs -showProgress -silent"
+  become: yes
+  become_user: "{{ grid_install_user }}"
+  run_once: "{{ configure_cluster}}"
+  tags:
+    - oragridinstall
+  when: oracle_home_gi not in checkgiinstall.stdout #and oracle_sw_unpack
+  register: giinstall
+
+- debug: var=giinstall.stdout_lines
+  run_once: "{{ configure_cluster}}"
+  when: oracle_home_gi not in checkgiinstall.stdout
+
+- include_role:
+        name: oraswgi-manage-patches
+  when: patch_before_rootsh and apply_patches_gi
+
+- name: install-home-gi | Run oraInstroot script after installation
+  shell: "{{ oracle_inventory_loc }}/orainstRoot.sh"
+  become: yes
+  tags:
+    - runroot
+  when: oracle_home_gi not in checkgiinstall.stdout
+
+- name: db checklist status post for Grid Install
+  import_role:
+    name: dbaas_api_services
+    tasks_from: db_checklist_status.yml
+  vars:
+    task_key: "{{ ansible_hostname }}"
+    standard_task_id: "{{ standard_task_id }}"
+    task_area: "GRID INSTALL"
+    task_id: "{{ ticket_ref }}"
+    task_status: "IN_PROGRESS"
+    task_message: "Running root.sh for Grid Infrastructure on {{ ansible_hostname }} "
+  when:
+    - inventory_hostname == master_node
+  tags:
+  - apex_api
+
+- name: install-home-gi | Run root script after installation (Master Node)
+  shell: "{{ oracle_home_gi }}/root.sh"
+  become: yes
+  run_once: "{{ configure_cluster}}"
+  tags:
+    - runroot
+  when: oracle_home_gi not in checkgiinstall.stdout
+  register: rootmaster
+
+- name: Get files in a folder
+  find:
+    paths: "{{ oracle_home_gi }}/install/"
+    patterns: "root_{{ ansible_hostname }}*.log"
+  register: log_files
+  tags:
+  - apex_api
+
+- name: db checklist status file upload for Grid Install
+  import_role:
+    name: dbaas_api_services
+    tasks_from: db_checklist_status_file.yml
+  vars:
+    standard_task_id: "{{ standard_task_id }}"
+    task_key: "{{ ansible_hostname }}"
+    task_area: "GRID INSTALL"
+    task_id: "{{ ticket_ref }}"
+    task_status: "Upload Grid Install Log"
+    task_message: "Grid Install Log {{ ansible_hostname }} "
+    file_mimetype: "text/plain"
+    record_type: "file_upload"
+    logfile_path:  "{{ log_files.files | sort(attribute='mtime',reverse=true) | first | json_query('path') }}"
+  tags:
+  - apex_api
+
+- debug: var=rootmaster.stdout_lines
+  run_once: "{{ configure_cluster}}"
+  when: oracle_home_gi not in checkgiinstall.stdout
+
+- name: install-home-gi | Run root script after installation (Other Nodes)
+  shell: "sleep {{ item.0 * 60 }}; {{ oracle_home_gi }}/root.sh"
+  become: yes
+  with_indexed_items: "{{groups[hostgroup]}}"
+  tags:
+    - runroot
+  #when: oracle_home_gi not in checkgiinstall.stdout  and inventory_hostname == item.1
+  when: configure_cluster and inventory_hostname != cluster_master and inventory_hostname == item.1 and oracle_home_gi not in checkgiinstall.stdout
+  register: rootother
+
+- debug: var=rootother.stdout_lines
+  #when: not master_node and oracle_home_gi not in checkgiinstall.stdout
+  when: configure_cluster and inventory_hostname != cluster_master and oracle_home_gi not in checkgiinstall.stdout
+  ignore_errors: True
+
+- name: install-home-gi | Setup response file for configToolAllCommands
+  template: src=configtoolallcommands.rsp.{{ oracle_install_version_gi }}.j2 dest={{ oracle_rsp_stage }}/configtoolallcommands.rsp owner="{{ grid_install_user }}" group={{ oracle_group }} mode=755 backup=yes
+  run_once: "{{ configure_cluster}}"
+  tags:
+    - responsefileconfigtool
+  when: run_configtoolallcommand  and oracle_home_gi not in checkgiinstall.stdout
+
+- name: install-home-gi | Run configToolAllCommands
+  shell: "{{ oracle_home_gi }}/cfgtoollogs/configToolAllCommands RESPONSE_FILE={{ oracle_rsp_stage }}/configtoolallcommands.rsp"
+  become: yes
+  become_user: "{{ grid_install_user }}"
+  run_once: "{{ configure_cluster}}"
+  tags:
+    - runconfigtool
+  when: run_configtoolallcommand and oracle_home_gi not in checkgiinstall.stdout
+  ignore_errors: true
+  register: configtool
+
+- name: db checklist status post for Grid Install
+  import_role:
+    name: dbaas_api_services
+    tasks_from: db_checklist_status.yml
+  vars:
+    task_key: "{{ ansible_hostname }}"
+    task_area: "Grid Install"
+    task_id: "{{ ticket_ref }}"
+    task_status: "IN_PROGRESS"
+    standard_task_id: "{{ standard_task_id_val }}"
+    task_message: "Completed Configtool for Grid Infrastructure on {{ ansible_hostname }} "
+  when: inventory_hostname == master_node
+  tags:
+  - apex_api
