@@ -16,6 +16,8 @@
         Content-Type: text/plain
         ID: "{{ checklist_id }}"
     register: log_insrt_response
+    tags:
+    - apex_api
 
   rescue:
   - name: 

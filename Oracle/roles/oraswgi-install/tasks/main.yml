@@ -1,7 +1,7 @@
 ---
 
-  - include_vars: secrets.yml
-    no_log: True
+  #- include_vars: secrets.yml
+  #  no_log: True
 
   - name: install-home-gi | Check if GI is already installed
     #shell: grep "{{ oracle_home_gi }}" "{{ oracle_inventory_loc }}/ContentsXML/inventory.xml" |wc -l
@@ -86,19 +86,19 @@
       use_regex: no
     register: asm_data_paths_find_result
 
-  - name: db checklist status post for Grid Install
-    import_role:
-      name: dbaas_api_services
-      tasks_from: db_checklist_status.yml
-    vars:
-      task_key: "{{ ansible_hostname }}"
-      task_area: "GRID INSTALL: Oracle Gi"
-      task_id: "{{ ticket_ref }}"
-      task_status: "STARTED"
-      standard_task_id: "{{ standard_task_id }}"
-      task_message: "Installing Oracle for {{ ansible_hostname }} "
-    tags:
-    - apex_api
+  #- name: db checklist status post for Grid Install
+    #import_role:
+      #name: dbaas_api_services
+      #tasks_from: db_checklist_status.yml
+    #vars:
+      #task_key: "{{ ansible_hostname }}"
+      #task_area: "GRID INSTALL: Oracle Gi"
+      #task_id: "{{ ticket_ref }}"
+      #task_status: "STARTED"
+      #standard_task_id: "{{ standard_task_id }}"
+      #task_message: "Installing Oracle for {{ ansible_hostname }} "
+    #tags:
+     #- apex_api
 
   - name: include_tasks "{{ oracle_install_version_gi }}.yml"
     include_tasks: "{{ oracle_install_version_gi }}.yml"

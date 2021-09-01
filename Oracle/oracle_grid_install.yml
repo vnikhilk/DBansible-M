@@ -1,6 +1,7 @@
 ---
 - name: Oracle Grid Infrastructure installation
-  hosts: '{{ host }}'
+  hosts: local
+  connection: local
   become: yes
   roles:
     - oraswgi-install

@@ -29,9 +29,10 @@
 #     - apex_api
 
 - name: db checklist status post for Pre-Check
-  import_role:
-    name: dbaas_api_services
-    tasks_from: db_checklist_status_file.yml
+  #import_role:
+    #name: dbaas_api_services
+    #tasks_from: db_checklist_status_file.yml
+  include_tasks: db_checklist_status_file.yml
   vars:
     task_key: "{{ ansible_hostname }}"
     task_area: "PRE-CHECK"
@@ -41,9 +42,7 @@
     standard_task_id: "{{ standard_task_id }}"
   tags:
   - apex_api
-
-
-
+  
 - name: check required RPMs
   yum:
    list: installed
@@ -116,22 +115,22 @@
     path: /var/tmp
   register: tmp_perms
 
-- name: check ownership for /u01
+- name: check ownership for /oracle
   stat:
-    path: /u01
+    path: /oracle
   register: ora_base
 
 - debug:
-    var: ora_base
-    verbosity: 1
+   var: ora_base
+   verbosity: 1
 
 - name: umask value checker
   become: yes
-  become_user: "{{ oracle_user }}"
+  become_user: "{{ oracle_user[0] }}"
   shell: umask
   changed_when: False
   register: umask_value
-
+  
 ##########################################################
 ## For all ulimit settings, these could be set with     ##
 ## `pam_limits` module.  However, like the perms check  ##
@@ -154,49 +153,55 @@
 #     value: "2047"
 - name: get ulimit value (soft files)
   become: yes
-  become_user: "{{ oracle_user }}"
+  become_user: "{{ oracle_user[0] }}"
   shell: ulimit -Sn
   changed_when: false
   register: ulimit_soft_files
 
+- debug:
+    var: ulimit_soft_files
+
 - name: get ulimit value (hard files)
   become: yes
-  become_user: "{{ oracle_user }}"
+  become_user: "{{ oracle_user[0] }}"
   shell: ulimit -Hn
   changed_when: false
   register: ulimit_hard_files
 
+- debug:
+    var: ulimit_hard_files
+
 - name: get ulimit value (hard procs)
   become: yes
-  become_user: "{{ oracle_user }}"
+  become_user: "{{ oracle_user[0] }}"
   shell: ulimit -Hu
   changed_when: false
   register: ulimit_hard_procs
 
 - name: get ulimit value (soft stack)
   become: yes
-  become_user: "{{ oracle_user }}"
+  become_user: "{{ oracle_user[0] }}"
   shell: ulimit -Ss
   changed_when: false
   register: ulimit_soft_stack
 
 - name: get ulimit value (hard stack)
   become: yes
-  become_user: "{{ oracle_user }}"
+  become_user: "{{ oracle_user[0] }}"
   shell: ulimit -Hs
   changed_when: false
   register: ulimit_hard_stack
 
 - name: get ulimit value (soft memlock)
   become: yes
-  become_user: "{{ oracle_user }}"
+  become_user: "{{ oracle_user[0] }}"
   shell: ulimit -Sl
   changed_when: false
   register: ulimit_soft_memlock
 
 - name: get ulimit value (hard memlock)
   become: yes
-  become_user: "{{ oracle_user }}"
+  become_user: "{{ oracle_user[0] }}"
   shell: ulimit -Hl
   changed_when: false
   register: ulimit_hard_memlock
@@ -222,22 +227,49 @@
   register: huge_page_total_size
 
 - name: check oracle user
-  command: grep {{ oracle_user }} /etc/passwd
+  command: grep {{ item }} /etc/passwd
   changed_when: False
   failed_when: False
   register: oracle_user_check
-- set_fact:
-    oracle_user_check: "{% if oracle_user_check.rc == 0 -%}Local User Exists
-                        {%- else -%}Local User Does Not Exist
-                        {%- endif %}"
+  loop: "{{ oracle_user }}"
 
-- name: check oracle groups
-  command: groups {{ oracle_user }}
+- name: check oracle user - setfact_oradb
+  set_fact: 
+    oracle_user_check_oradb: "{% if oracle_user_check['results'][0].rc == 0 -%}oradb User Exists
+                              {%- else -%}oradb User Does Not Exist
+                              {%- endif %}"
+
+- name: check oracle user - setfact_oragrid
+  set_fact: 
+    oracle_user_check_oragrid: "{% if oracle_user_check['results'][1].rc == 0 -%}oragrid User Exists
+                                {%- else -%}oragrid User Does Not Exist
+                                {%- endif %}"
+
+- name: check oracle groups_oradb
+  command: groups {{ oracle_user[0] }}
   changed_when: False
   ignore_errors: True
   register: oracle_group_check
-- set_fact:
-    oracle_group_check: "{{ oracle_group_check.stdout | regex_replace(oracle_user + ' : (.*)', '\\1') }}"
+
+- name: check oracle groups - setfact_oradb
+  set_fact:
+    oracle_group_check: "{{ oracle_group_check.stdout | regex_replace(oracle_user[0] + ' : (.*)', '\\1') }}"
+
+- debug:
+    var: oracle_group_check
+
+- name: check oracle groups_oragrid
+  command: groups {{ oracle_user[1] }}
+  changed_when: False
+  ignore_errors: True
+  register: oracle_group_check_oragrid
+
+- name: check oracle groups - setfact_oragrid
+  set_fact:
+    oracle_group_check_oragrid: "{{ oracle_group_check_oragrid.stdout | regex_replace(oracle_user[1] + ' : (.*)', '\\1') }}"
+
+- debug:
+    var: oracle_group_check_oragrid
 
 # - name: Get The Ignored Users In pbis
 #   slurp:
@@ -287,31 +319,34 @@
     use_regex: no
   register: asm_data_disks
 
+#may be optional (good to have to maintain disk standards)
 - name: check reco disks
   find:
     paths: "{{ asm_disk_location }}"
     file_type: any
-    patterns: "{{ asm_reco_pattern }}"
+    patterns: "{{ asm_reco_pattern }}" #archive, redo logs
     use_regex: no
   register: asm_reco_disks
 
+#may be optional
 - name: check exp disks
   find:
     paths: "{{ asm_disk_location }}"
     file_type: any
-    patterns: "{{ asm_exp_pattern }}"
+    patterns: "{{ asm_exp_pattern }}" #archive, redo logs
     use_regex: no
   register: asm_exp_disks
 
-- name: check gg disks
-  find:
-    paths: "{{ asm_disk_location }}"
-    file_type: any
-    patterns: "{{ asm_gg_pattern }}"
-    use_regex: no
-  register: asm_gg_disks
-  when: golden_gate_check
+#- name: check gg disks
+#  find:
+#    paths: "{{ asm_disk_location }}"
+#    file_type: any
+#    patterns: "{{ asm_gg_pattern }}"
+#    use_regex: no
+#  register: asm_gg_disks
+#  when: golden_gate_check
 
+#needs to be updated
 - name: check ocr disks
   find:
     paths: "{{ asm_disk_location }}"
@@ -342,7 +377,7 @@
                        {%- elif ansible_memtotal_mb | int >= 64000 and
                               ansible_memtotal_mb | int < 262144 -%}16300 or higher
                        {%- elif ansible_memtotal_mb | int >= 262144 -%}32000 or higher
-                      {%- else -%}0
+                      {%- else -%}
                       {%- endif %}"
       actual_value: "{{ ansible_swaptotal_mb }}"
       status: "{% if (ansible_memtotal_mb | int < 64000 and
@@ -404,19 +439,19 @@
       status: "{% if tmp_perms.stat.mode != '1777' -%}FAILED
                {%- else -%}PASSED
                {%- endif %}"
-    - check_name: /u01 Owner
-      expected_value: "{{ oracle_user }}"
-      actual_value: "{% if not ora_base.stat.exists -%}/u01 doesn't exist
+    - check_name: /oracle Owner
+      expected_value: "{{ oracle_user[1] }}"
+      actual_value: "{% if not ora_base.stat.exists -%}/oracle doesn't exist
                      {%- else -%}{{ ora_base.stat.pw_name }}
                      {%- endif %}"
       status: "{% if not ora_base.stat.exists or
-                         ora_base.stat.pw_name != oracle_user -%}FAILED
+                         ora_base.stat.pw_name != oracle_user[1] -%}FAILED
                {%- else -%}PASSED
                {%- endif %}"
-    - check_name: /u01/app Group
-      expected_value: "{{ oracle_groups[0] }}"
+    - check_name: /oracle/app Group
+      expected_value: "{{ oragrid_group[0] }}"
       actual_value: "{{ ora_base.stat.gr_name }}"
-      status: "{% if ora_base.stat.gr_name != oracle_groups[0] -%}FAILED
+      status: "{% if ora_base.stat.gr_name != oragrid_group[0] -%}FAILED
                {%- else -%}PASSED
                {%- endif %}"
     - check_name: umask Value
@@ -473,18 +508,32 @@
       status: "{% if huge_page_total_size.stdout | int * 2 < ansible_memtotal_mb // 2 -%}FAILED
                {%- else -%}PASSED
                {%- endif %}"
-    - check_name: Oracle user check
-      expected_value: Local User Exists
-      actual_value: "{{ oracle_user_check}}"
-      status: "{% if oracle_user_check != 'Local User Exists' -%}FAILED
+    - check_name: Oracle user check_oradb
+      expected_value: oradb User Exists
+      actual_value: "{{ oracle_user_check_oradb}}"
+      status: "{% if oracle_user_check_oradb != 'oradb User Exists' -%}FAILED
                {%- else -%}PASSED
                {%- endif %}"
-    - check_name: Oracle group check
-      expected_value: "{{ oracle_groups | join(',') }}"
+    - check_name: Oracle user check_oragrid
+      expected_value: oragrid User Exists
+      actual_value: "{{ oracle_user_check_oragrid}}"
+      status: "{% if oracle_user_check_oragrid != 'oragrid User Exists' -%}FAILED
+               {%- else -%}PASSED
+               {%- endif %}"
+
+    - check_name: Oracle group check_oradb
+      expected_value: "{{ oracle_groups | join (', ') }}"
       actual_value: "{{ oracle_group_check }}"
-      status: "{% if oracle_group_check.split(' ') | difference(oracle_groups) | length > 0 -%}FAILED
-              {%- else -%}PASSED
-              {%- endif %}"
+      status: "{% if oracle_group_check.split(' ') | symmetric_difference(oracle_groups) | length > 0 -%}FAILED
+               {%- else -%}PASSED
+               {% endif %}"
+    
+    - check_name: Oracle group check_oragrid
+      expected_value: "{{ oragrid_group | join (', ') }}"
+      actual_value: "{{ oracle_group_check_oragrid }}"
+      status: "{% if oragrid_group | difference(oracle_group_check_oragrid) | length > 0 %}FAILED
+               {% else %}PASSED
+               {% endif %}"
     # - check_name: Ignored PBIS users
     #   expected_value: "{{ pbis.ignored_users | join(',') }}"
     #   actual_value: "{{ pbis_ignored_users_in_srvr.content | b64decode | trim | regex_replace('\n',',') }}"
@@ -499,13 +548,13 @@
     #                  missing_pbis_ignored_groups | length > 0 -%}FAILED
     #            {%- else -%}PASSED
     #            {%- endif %}"
-    - check_name: Check /u01 Filesystem Size
+    - check_name: Check /oracle Filesystem Size
       expected_value: 300 GiB
-      actual_value: "{% if ansible_mounts | json_query('[?mount == `/u01`]') == [] -%}unmounted
-                     {%- else -%}{{ (ansible_mounts | json_query('[?mount == `/u01`].size_total|[0]') | int / 1024 | pow(3)) | round | int }} GiB
+      actual_value: "{% if ansible_mounts | json_query('[?mount == `/oracle`]') == [] -%}unmounted
+                     {%- else -%}{{ (ansible_mounts | json_query('[?mount == `/oracle`].size_total|[0]') | int / 1024 | pow(3)) | round | int }} GiB
                      {%- endif -%}"
-      status: "{% if ansible_mounts | json_query('[?mount == `/u01`]') == [] or
-                     (ansible_mounts | json_query('[?mount == `/u01`].size_total|[0]') | int / 1024 | pow(3)) | round | int < 300 -%}FAILED
+      status: "{% if ansible_mounts | json_query('[?mount == `/oracle`]') == [] or
+                     (ansible_mounts | json_query('[?mount == `/oracle`].size_total|[0]') | int / 1024 | pow(3)) | round | int < 300 -%}FAILED
                {%- else -%}PASSED
                {%- endif %}"
     - check_name: check nozeroconf in config of network
@@ -579,49 +628,11 @@
                 {%- else -%}PASSED
                {%- endif %}"
 
-
-- debug:
-    var: checklist | json_query('[?status == `FAILED`]')
-    verbosity: 1
-  tags:
-    - charteronly
 - name: create tmp dir
   file:
     path: "{{ oracle_tmp }}"
     recurse: yes
     state: directory
-
-- name: Write checklist to file for upload
-  copy:
-    dest: "{{ oracle_tmp }}/prereq_checklist.json"
-    content: "{{ checklist }}"
-
-
-- name: include upload log for precheck
-  include_tasks: upload_log.yml
-  vars:
-    logfile_path: "{{ oracle_tmp }}/prereq_checklist.json"
-    log_file_desc: pre-check list
-  tags:
-
-    - apex_api
-
-- name: db checklist status file upload for Pre-Check
-  import_role:
-    name: dbaas_api_services
-    tasks_from: db_checklist_status_file.yml
-  vars:
-    task_key: "{{ ansible_hostname }}"
-    task_area: "PRE-CHECK"
-    task_id: "{{ ticket_ref }}"
-    task_status: "Upload Checklist"
-    task_message: "Pre-Check {{ ansible_hostname }} "
-    file_mimetype: "text/plain"
-    record_type: "file_upload"
-    standard_task_id: "{{ standard_task_id }}"
-    logfile_path:  "{{ oracle_tmp }}/prereq_checklist.json"
-  tags:
-  - apex_api
 
 # - name: include host checklist post update for precheck
 #   include_tasks: host_checklist_post_update.yml
@@ -638,23 +649,12 @@
 #                           {%- endif %}"
 #   tags:
 #     - apex_api
-
-- name: db checklist status post for Create DB
-  import_role:
-    name: dbaas_api_services
-    tasks_from: db_checklist_status_file.yml
-  vars:
-    task_key: "{{ ansible_hostname }}"
-    task_area: "PRE-CHECK"
-    task_id: "{{ ticket_ref }}"
-    standard_task_id: "{{ standard_task_id }}"
-    task_status: "{% if checklist | json_query('[?status == `FAILED`]') | length > 1 -%}FAILED
-                  {%- else -%}SUCCESSFUL
-                  {%- endif %}"
-    task_message: "Pre-check for {{ ansible_hostname }} "
-    tags:
-    - apex_api
-
+- debug:
+    var: checklist #| json_query('[?status == `FAILED`]')
+    #verbosity: 1
+  tags:
+    - charteronly
+  
 - name: Check for Precheck Failures
   fail:
     msg: "{% if checklist | json_query('[?status == `FAILED`]') | length == 1 -%}You have 1 failed check

@@ -5,6 +5,7 @@
   slurp:
     src: "{{ logfile_path }}"
   register: logfile_text
+  tags: apex_api
 
 - name: Insert Log FIle to V_CHECKLIST_STATUS
   block:
@@ -29,6 +30,8 @@
         task_message: "{{ task_message }}"
         standard_task_id: "{{ standard_task_id }}"
     register: checklist_attach_file_response
+    tags: 
+    - apex_api
 
 
   rescue:

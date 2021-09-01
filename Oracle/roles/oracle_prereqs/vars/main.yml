@@ -1,10 +1,15 @@
 ---
+oragrid_group:
+- oinstall
 
-oracle_user: oracle
+oracle_user:
+- oradb
+- oragrid
 
 oracle_groups:
 - oinstall
-- dba
+- dbadmin
+- dboper
 
 installation_type: "{% if ansible_play_hosts | length > 1 -%}rac
                     {%- else -%}standalone
@@ -34,38 +39,44 @@ asm_gg_pattern: GG*
 asm_ocr_pattern: GRID_DISK*
 
 kernel_parameters:
-    kernel_sem: "250 32000 100 128"
-    fs_aio_max_nr: "3145728"
+    kernel_sem: "250 46000 100 200"
+    fs_aio_max_nr: "1048576"
     net_ipv4_ip_local_port_range: "9000 65500"
     net_core_rmem_default: "262144"
     net_core_rmem_max: "4194304"
     net_core_wmem_default: "262144"
     net_core_wmem_max: "1048576"
-    fs_file_max: "13631488"
-    kernel_shmmax: "4398046511104"
-    kernel_shmall: "1073741824"
+    fs_file_max: "6815744"
+    kernel_shmmax: "4294967295"
+    kernel_shmall: "2097152"
     kernel_shmmni: "4096"
 
     
 
 required_rpms:
+  - bc
   - binutils
   - compat-libcap1
-  - gcc
-  - gcc-c++
+  - compat-libstdc++-33
+  - elfutils-libelf
+  - elfutils-libelf-devel
+  - fontconfig-devel
   - glibc
   - glibc-devel
   - ksh
   - libaio
   - libaio-devel
+  - libX11
+  - libXau
+  - libXi
+  - libXtst
+  - libXrender
+  - libXrender-devel
   - libgcc
   - libstdc++
   - libstdc++-devel
-  - libXi
-  - libXtst
+  - libxcb
   - make
+  - smartmontools
   - sysstat
-  - compat-libstdc++-33
-  - kmod
-
 

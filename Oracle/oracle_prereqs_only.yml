@@ -1,7 +1,8 @@
 ---
 
 - name: Oracle Pre-Reqs
-  hosts: '{{ host }}'
+  hosts: local
+  connection: local
   become: yes
   tasks:
   - import_role:
